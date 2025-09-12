@@ -35,17 +35,35 @@ const AdminCRUDDashboard: React.FC = () => {
   ];
 
   const handleRegenerateTimetable = async () => {
+    if (!hasMinimumData) {
+      dispatch(addNotification({
+        type: 'error',
+        title: 'Cannot Generate Timetable',
+        message: 'Please configure all required entities first',
+      }));
+      return;
+    }
+
     dispatch(setGenerating(true));
     
-    // Simulate timetable regeneration
-    setTimeout(() => {
-      dispatch(setGenerating(false));
+    try {
+      // Simulate comprehensive timetable regeneration for full week/month
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
       dispatch(addNotification({
         type: 'success',
-        title: 'Timetable Regenerated',
-        message: 'New timetable has been generated based on updated data',
+        title: 'Full Timetable Generated',
+        message: 'Complete weekly and monthly timetable has been generated with current data',
       }));
-    }, 3000);
+    } catch (error) {
+      dispatch(addNotification({
+        type: 'error',
+        title: 'Generation Failed',
+        message: 'Failed to generate timetable. Please try again.',
+      }));
+    } finally {
+      dispatch(setGenerating(false));
+    }
   };
 
   const getSystemStatus = () => {
@@ -81,17 +99,17 @@ const AdminCRUDDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
           <Settings className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-800">Admin CRUD Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Admin CRUD Dashboard</h1>
         </div>
         
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
           <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg ${
             systemStatus.status === 'ready' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
           }`}>
             <CheckCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">
+            <span className="text-xs sm:text-sm font-medium">
               {systemStatus.status === 'ready' ? 'System Ready' : 'Setup Incomplete'}
             </span>
           </div>
@@ -106,25 +124,25 @@ const AdminCRUDDashboard: React.FC = () => {
             ) : (
               <Zap className="w-4 h-4" />
             )}
-            <span>{isGenerating ? 'Regenerating...' : 'Regenerate Timetable'}</span>
+            <span className="hidden sm:inline">{isGenerating ? 'Regenerating...' : 'Regenerate Timetable'}</span>
           </button>
         </div>
       </div>
 
       {/* System Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
-            <div key={tab.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div key={tab.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
+                <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
                   <div className="p-2 bg-blue-100 rounded-lg">
                     <Icon className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">{tab.name}</p>
-                    <p className="text-2xl font-bold text-gray-800">{tab.count}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-600">{tab.name}</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-800">{tab.count}</p>
                   </div>
                 </div>
               </div>
@@ -136,7 +154,7 @@ const AdminCRUDDashboard: React.FC = () => {
       {/* Tab Navigation */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
+          <nav className="flex overflow-x-auto space-x-4 sm:space-x-8 px-4 sm:px-6">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -144,7 +162,7 @@ const AdminCRUDDashboard: React.FC = () => {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`
-                    flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm
+                    flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap
                     ${activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -154,7 +172,7 @@ const AdminCRUDDashboard: React.FC = () => {
                   <Icon className="w-4 h-4" />
                   <span>{tab.name}</span>
                   <span className={`
-                    inline-flex items-center justify-center px-2 py-1 text-xs font-bold rounded-full
+                    inline-flex items-center justify-center px-2 py-1 text-xs font-bold rounded-full min-w-[1.5rem]
                     ${activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'}
                   `}>
                     {tab.count}
@@ -165,19 +183,19 @@ const AdminCRUDDashboard: React.FC = () => {
           </nav>
         </div>
         
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {renderTabContent()}
         </div>
       </div>
 
       {/* System Status */}
       {systemStatus.status !== 'ready' && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6">
           <div className="flex items-start space-x-3">
             <Settings className="w-5 h-5 text-yellow-600 mt-0.5" />
             <div>
               <h3 className="text-sm font-medium text-yellow-800">Setup Required</h3>
-              <p className="text-sm text-yellow-700 mt-1">
+              <p className="text-xs sm:text-sm text-yellow-700 mt-1">
                 Please ensure you have at least 1 faculty member, 1 batch, 1 subject, 1 room, and time slots configured before generating timetables.
               </p>
             </div>
