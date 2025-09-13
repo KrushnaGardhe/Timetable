@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, User, Building, Plus, Edit, Save, X } from 'lucide-react';
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import interactionPlugin from '@fullcalendar/interaction';
+import { Calendar, Users, Building, BookOpen, Filter, Download, Edit, Save, X } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '../../hooks/redux';
 import { Session } from '../../types';
 
@@ -11,306 +7,308 @@ const TimetableView: React.FC = () => {
   const dispatch = useAppDispatch();
   const { sessions, conflicts } = useAppSelector(state => state.timetable);
   const { subjects, batches, faculty, rooms, timeSlots } = useAppSelector(state => state.data);
-  const { user } = useAppSelector(state => state.auth);
   
   const [viewType, setViewType] = useState<'batch' | 'faculty' | 'room'>('batch');
-  const [selectedId, setSelectedId] = useState<string>('');
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<string>('');
+  const [isEditing, setIsEditing] = useState(false);
 
-  const [options, setOptions] = useState<any[]>([]);
+  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const timeSlotsByDay = timeSlots.reduce((acc, slot) => {
+    if (slot.day < 5) { // Only weekdays
+      if (!acc[slot.day]) acc[slot.day] = [];
+      acc[slot.day].push(slot);
+    }
+    return acc;
+  }, {} as Record<number, typeof timeSlots>);
 
-  useEffect(() => {
-    let newOptions: any[] = [];
+  // Sort time slots by start time for each day
+  Object.keys(timeSlotsByDay).forEach(day => {
+    timeSlotsByDay[parseInt(day)].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  });
+
+  const getEntityOptions = () => {
     switch (viewType) {
       case 'batch':
-        newOptions = batches;
-        break;
+        return batches.map(b => ({ id: b.id, name: b.name }));
       case 'faculty':
-        newOptions = faculty;
-        break;
+        return faculty.map(f => ({ id: f.id, name: f.name }));
       case 'room':
-        newOptions = rooms;
-        break;
+        return rooms.map(r => ({ id: r.id, name: r.name }));
+      default:
+        return [];
     }
-    setOptions(newOptions);
-    if (newOptions.length > 0 && !selectedId) {
-      setSelectedId(newOptions[0].id);
-    }
-  }, [viewType, batches, faculty, rooms]);
+  };
 
   const getFilteredSessions = () => {
-    if (!selectedId) return [];
+    if (!selectedEntity) return sessions;
     
     return sessions.filter(session => {
       switch (viewType) {
         case 'batch':
-          return session.batchId === selectedId;
+          return session.batchId === selectedEntity;
         case 'faculty':
-          return session.facultyId === selectedId;
+          return session.facultyId === selectedEntity;
         case 'room':
-          return session.roomId === selectedId;
+          return session.roomId === selectedEntity;
         default:
-          return false;
+          return true;
       }
     });
   };
 
-  const getCalendarEvents = () => {
+  const getSessionForSlot = (day: number, timeSlotId: string) => {
     const filteredSessions = getFilteredSessions();
-    
-    return filteredSessions.map(session => {
-      const subject = subjects.find(s => s.id === session.subjectId);
-      const batch = batches.find(b => b.id === session.batchId);
-      const facultyMember = faculty.find(f => f.id === session.facultyId);
-      const room = rooms.find(r => r.id === session.roomId);
-      const timeSlot = timeSlots.find(t => t.id === session.timeSlotId);
-      
-      if (!timeSlot || !subject) return null;
-
-      // Convert day and time to calendar event format
-      const eventDate = new Date();
-      eventDate.setDate(eventDate.getDate() + (timeSlot.day - eventDate.getDay()));
-      
-      const [startHour, startMinute] = timeSlot.startTime.split(':').map(Number);
-      const [endHour, endMinute] = timeSlot.endTime.split(':').map(Number);
-      
-      const start = new Date(eventDate);
-      start.setHours(startHour, startMinute, 0);
-      
-      const end = new Date(eventDate);
-      end.setHours(endHour, endMinute, 0);
-
-      const hasConflict = conflicts.some(conflict => 
-        conflict.sessionIds.includes(session.id)
-      );
-
-      return {
-        id: session.id,
-        title: `${subject.name} - ${batch?.name}`,
-        start,
-        end,
-        backgroundColor: hasConflict ? '#ef4444' : session.type === 'lab' ? '#f59e0b' : '#3b82f6',
-        borderColor: hasConflict ? '#dc2626' : session.type === 'lab' ? '#d97706' : '#2563eb',
-        extendedProps: {
-          session,
-          subject,
-          batch,
-          faculty: facultyMember,
-          room,
-          hasConflict,
-        },
-      };
-    }).filter(Boolean);
+    return filteredSessions.find(session => session.timeSlotId === timeSlotId);
   };
 
-  const handleEventClick = (info: any) => {
-    if (user?.role === 'admin') {
-      setSelectedSession(info.event.extendedProps.session);
-      setEditDialogOpen(true);
-    }
-  };
-
-  const handleSaveSession = () => {
-    // In production, this would update the session via API
-    setEditDialogOpen(false);
-    setSelectedSession(null);
-  };
-
-  const getTimetableStats = () => {
-    const filteredSessions = getFilteredSessions();
-    const totalHours = filteredSessions.reduce((sum, session) => {
-      const subject = subjects.find(s => s.id === session.subjectId);
-      return sum + (subject?.sessionDuration || 60) / 60;
-    }, 0);
-
-    const conflictingSessions = filteredSessions.filter(session =>
-      conflicts.some(conflict => conflict.sessionIds.includes(session.id))
-    ).length;
+  const getSessionDetails = (session: Session) => {
+    const subject = subjects.find(s => s.id === session.subjectId);
+    const batch = batches.find(b => b.id === session.batchId);
+    const facultyMember = faculty.find(f => f.id === session.facultyId);
+    const room = rooms.find(r => r.id === session.roomId);
 
     return {
-      totalSessions: filteredSessions.length,
-      totalHours: Math.round(totalHours * 10) / 10,
-      conflicts: conflictingSessions,
-      utilization: Math.round((totalHours / 40) * 100), // Assuming 40 hours per week max
+      subject: subject?.name || 'Unknown Subject',
+      subjectCode: subject?.code || '',
+      batch: batch?.name || 'Unknown Batch',
+      faculty: facultyMember?.name || 'Unknown Faculty',
+      room: room?.name || 'Unknown Room',
+      type: subject?.type || 'theory'
     };
   };
 
-  const stats = getTimetableStats();
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'theory': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'lab': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'elective': return 'bg-green-100 text-green-800 border-green-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const hasConflict = (session: Session) => {
+    return conflicts.some(conflict => conflict.sessionIds.includes(session.id));
+  };
+
+  const entityOptions = getEntityOptions();
+
+  useEffect(() => {
+    if (entityOptions.length > 0 && !selectedEntity) {
+      setSelectedEntity(entityOptions[0].id);
+    }
+  }, [viewType, entityOptions.length]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div className="flex items-center space-x-3">
           <Calendar className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-800">Timetable View</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Weekly Timetable</h1>
         </div>
         
-        {user?.role === 'admin' && (
-          <button
-            onClick={() => setEditDialogOpen(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Session</span>
-          </button>
-        )}
-      </div>
-
-      {/* Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">View Type</label>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+          <div className="flex items-center space-x-2">
+            <Filter className="w-4 h-4 text-gray-600" />
+            <select
+              value={viewType}
+              onChange={(e) => setViewType(e.target.value as any)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            >
+              <option value="batch">By Batch</option>
+              <option value="faculty">By Faculty</option>
+              <option value="room">By Room</option>
+            </select>
+          </div>
+          
           <select
-            value={viewType}
-            onChange={(e) => setViewType(e.target.value as any)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={selectedEntity}
+            onChange={(e) => setSelectedEntity(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm min-w-[200px]"
           >
-            <option value="batch">By Batch</option>
-            <option value="faculty">By Faculty</option>
-            <option value="room">By Room</option>
-          </select>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Select {viewType}</label>
-          <select
-            value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            {options.map(option => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-              </option>
+            {entityOptions.map(option => (
+              <option key={option.id} value={option.id}>{option.name}</option>
             ))}
           </select>
+          
+          <button
+            onClick={() => setIsEditing(!isEditing)}
+            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 flex items-center space-x-2 text-sm"
+          >
+            {isEditing ? <X className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+            <span>{isEditing ? 'Stop Editing' : 'Edit'}</span>
+          </button>
+          
+          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 text-sm">
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">Export</span>
+          </button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-          <p className="text-2xl font-bold text-blue-600">{stats.totalSessions}</p>
-          <p className="text-sm text-gray-600">Total Sessions</p>
+      {/* Statistics */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center space-x-2">
+            <Calendar className="w-5 h-5 text-blue-600" />
+            <div>
+              <p className="text-2xl font-bold text-blue-600">{getFilteredSessions().length}</p>
+              <p className="text-sm text-gray-600">Total Sessions</p>
+            </div>
+          </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-          <p className="text-2xl font-bold text-green-600">{stats.totalHours}h</p>
-          <p className="text-sm text-gray-600">Total Hours</p>
+        
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center space-x-2">
+            <Users className="w-5 h-5 text-green-600" />
+            <div>
+              <p className="text-2xl font-bold text-green-600">{faculty.length}</p>
+              <p className="text-sm text-gray-600">Faculty</p>
+            </div>
+          </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-          <p className="text-2xl font-bold text-red-600">{stats.conflicts}</p>
-          <p className="text-sm text-gray-600">Conflicts</p>
+        
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center space-x-2">
+            <Building className="w-5 h-5 text-orange-600" />
+            <div>
+              <p className="text-2xl font-bold text-orange-600">{rooms.length}</p>
+              <p className="text-sm text-gray-600">Rooms</p>
+            </div>
+          </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-          <p className="text-2xl font-bold text-purple-600">{stats.utilization}%</p>
-          <p className="text-sm text-gray-600">Utilization</p>
+        
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center space-x-2">
+            <BookOpen className="w-5 h-5 text-red-600" />
+            <div>
+              <p className="text-2xl font-bold text-red-600">{conflicts.length}</p>
+              <p className="text-sm text-gray-600">Conflicts</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Calendar */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView="timeGridWeek"
-          headerToolbar={{
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay',
-          }}
-          events={getCalendarEvents()}
-          eventClick={handleEventClick}
-          height="600px"
-          slotMinTime="08:00:00"
-          slotMaxTime="18:00:00"
-          allDaySlot={false}
-          eventDisplay="block"
-          dayHeaderFormat={{ weekday: 'long' }}
-        />
-      </div>
-
-      {/* Edit Dialog */}
-      {editDialogOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-semibold text-gray-800">
-                {selectedSession ? 'Edit Session' : 'Add Session'}
-              </h2>
-              <button
-                onClick={() => setEditDialogOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
+      {/* Weekly Timetable Grid */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800">
+            Weekly Schedule - {entityOptions.find(e => e.id === selectedEntity)?.name}
+          </h3>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <div className="min-w-[800px]">
+            {/* Header */}
+            <div className="grid grid-cols-6 bg-gray-50 border-b border-gray-200">
+              <div className="p-3 font-medium text-gray-700 border-r border-gray-200">Time</div>
+              {dayNames.map((day, index) => (
+                <div key={index} className="p-3 font-medium text-gray-700 text-center border-r border-gray-200 last:border-r-0">
+                  {day}
+                </div>
+              ))}
             </div>
             
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="">Select Subject</option>
-                    {subjects.map(subject => (
-                      <option key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </option>
-                    ))}
-                  </select>
+            {/* Time Slots */}
+            {timeSlotsByDay[0]?.map((timeSlot, slotIndex) => (
+              <div key={timeSlot.id} className="grid grid-cols-6 border-b border-gray-200 min-h-[80px]">
+                <div className="p-3 bg-gray-50 border-r border-gray-200 flex flex-col justify-center">
+                  <div className="text-sm font-medium text-gray-800">
+                    {timeSlot.startTime} - {timeSlot.endTime}
+                  </div>
+                  <div className="text-xs text-gray-500 capitalize">{timeSlot.shift}</div>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Batch</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="">Select Batch</option>
-                    {batches.map(batch => (
-                      <option key={batch.id} value={batch.id}>
-                        {batch.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Faculty</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="">Select Faculty</option>
-                    {faculty.map(f => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Room</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="">Select Room</option>
-                    {rooms.map(room => (
-                      <option key={room.id} value={room.id}>
-                        {room.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {dayNames.map((day, dayIndex) => {
+                  const dayTimeSlot = timeSlotsByDay[dayIndex]?.[slotIndex];
+                  const session = dayTimeSlot ? getSessionForSlot(dayIndex, dayTimeSlot.id) : null;
+                  
+                  return (
+                    <div key={dayIndex} className="p-2 border-r border-gray-200 last:border-r-0 min-h-[80px]">
+                      {session ? (
+                        <div className={`
+                          h-full rounded-lg border-2 p-2 cursor-pointer transition-all hover:shadow-md
+                          ${getTypeColor(getSessionDetails(session).type)}
+                          ${hasConflict(session) ? 'ring-2 ring-red-500' : ''}
+                          ${isEditing ? 'hover:scale-105' : ''}
+                        `}>
+                          <div className="text-xs font-semibold truncate">
+                            {getSessionDetails(session).subjectCode}
+                          </div>
+                          <div className="text-xs truncate mt-1">
+                            {getSessionDetails(session).subject}
+                          </div>
+                          {viewType !== 'faculty' && (
+                            <div className="text-xs text-gray-600 truncate mt-1">
+                              {getSessionDetails(session).faculty}
+                            </div>
+                          )}
+                          {viewType !== 'room' && (
+                            <div className="text-xs text-gray-600 truncate">
+                              {getSessionDetails(session).room}
+                            </div>
+                          )}
+                          {viewType !== 'batch' && (
+                            <div className="text-xs text-gray-600 truncate">
+                              {getSessionDetails(session).batch}
+                            </div>
+                          )}
+                          {hasConflict(session) && (
+                            <div className="text-xs text-red-600 font-medium mt-1">
+                              Conflict!
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className={`
+                          h-full rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center
+                          ${isEditing ? 'hover:border-blue-400 hover:bg-blue-50 cursor-pointer' : ''}
+                        `}>
+                          {isEditing && (
+                            <span className="text-xs text-gray-400">Drop here</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-            
-            <div className="flex items-center justify-end space-x-3 p-6 border-t">
-              <button
-                onClick={() => setEditDialogOpen(false)}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveSession}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-              >
-                <Save className="w-4 h-4" />
-                <span>Save</span>
-              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <h4 className="text-sm font-medium text-gray-800 mb-3">Legend</h4>
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 rounded bg-blue-100 border border-blue-200"></div>
+            <span className="text-sm text-gray-600">Theory</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 rounded bg-orange-100 border border-orange-200"></div>
+            <span className="text-sm text-gray-600">Lab</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 rounded bg-green-100 border border-green-200"></div>
+            <span className="text-sm text-gray-600">Elective</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 rounded border-2 border-red-500"></div>
+            <span className="text-sm text-gray-600">Conflict</span>
+          </div>
+        </div>
+      </div>
+
+      {isEditing && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <Edit className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-medium text-blue-800">Editing Mode Active</h4>
+              <p className="text-sm text-blue-700 mt-1">
+                Drag and drop sessions to reschedule them. The system will validate all constraints automatically.
+              </p>
             </div>
           </div>
         </div>
