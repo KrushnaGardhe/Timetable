@@ -114,7 +114,7 @@ export class TimetableGenerator {
     // Distribute sessions across the week based on type and index
     if (subject.type === 'lab') {
       // Labs prefer specific days to avoid conflicts
-      return [1, 3, 4]; // Tuesday, Thursday, Friday
+      return [1, 2, 3]; // Tuesday, Wednesday, Thursday
     } else if (subject.sessionsPerWeek >= 3) {
       // High-frequency subjects spread across week
       const allDays = [0, 1, 2, 3, 4]; // Monday to Friday
