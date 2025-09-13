@@ -128,7 +128,7 @@ const TimeSlotManagement: React.FC = () => {
     for (let day = 0; day < 5; day++) {
       morningSlots.forEach((slot, index) => {
         defaultSlots.push({
-          id: `${day}-morning-${index}`,
+          id: `${day * 8 + index + 1}`,
           day,
           startTime: slot.start,
           endTime: slot.end,
@@ -138,7 +138,7 @@ const TimeSlotManagement: React.FC = () => {
       
       afternoonSlots.forEach((slot, index) => {
         defaultSlots.push({
-          id: `${day}-afternoon-${index}`,
+          id: `${day * 8 + index + 5}`,
           day,
           startTime: slot.start,
           endTime: slot.end,
