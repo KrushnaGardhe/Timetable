@@ -156,6 +156,7 @@ export const mockRooms: Room[] = [
 ];
 
 export const mockTimeSlots: TimeSlot[] = [
+  // Monday
   { id: '1', day: 0, startTime: '09:00', endTime: '10:00', shift: 'morning' },
   { id: '2', day: 0, startTime: '10:00', endTime: '11:00', shift: 'morning' },
   { id: '3', day: 0, startTime: '11:15', endTime: '12:15', shift: 'morning' },
@@ -164,4 +165,44 @@ export const mockTimeSlots: TimeSlot[] = [
   { id: '6', day: 0, startTime: '15:00', endTime: '16:00', shift: 'afternoon' },
   { id: '7', day: 0, startTime: '16:15', endTime: '17:15', shift: 'afternoon' },
   { id: '8', day: 0, startTime: '17:15', endTime: '18:15', shift: 'afternoon' },
+  
+  // Tuesday
+  { id: '9', day: 1, startTime: '09:00', endTime: '10:00', shift: 'morning' },
+  { id: '10', day: 1, startTime: '10:00', endTime: '11:00', shift: 'morning' },
+  { id: '11', day: 1, startTime: '11:15', endTime: '12:15', shift: 'morning' },
+  { id: '12', day: 1, startTime: '12:15', endTime: '13:15', shift: 'morning' },
+  { id: '13', day: 1, startTime: '14:00', endTime: '15:00', shift: 'afternoon' },
+  { id: '14', day: 1, startTime: '15:00', endTime: '16:00', shift: 'afternoon' },
+  { id: '15', day: 1, startTime: '16:15', endTime: '17:15', shift: 'afternoon' },
+  { id: '16', day: 1, startTime: '17:15', endTime: '18:15', shift: 'afternoon' },
+  
+  // Wednesday
+  { id: '17', day: 2, startTime: '09:00', endTime: '10:00', shift: 'morning' },
+  { id: '18', day: 2, startTime: '10:00', endTime: '11:00', shift: 'morning' },
+  { id: '19', day: 2, startTime: '11:15', endTime: '12:15', shift: 'morning' },
+  { id: '20', day: 2, startTime: '12:15', endTime: '13:15', shift: 'morning' },
+  { id: '21', day: 2, startTime: '14:00', endTime: '15:00', shift: 'afternoon' },
+  { id: '22', day: 2, startTime: '15:00', endTime: '16:00', shift: 'afternoon' },
+  { id: '23', day: 2, startTime: '16:15', endTime: '17:15', shift: 'afternoon' },
+  { id: '24', day: 2, startTime: '17:15', endTime: '18:15', shift: 'afternoon' },
+  
+  // Thursday
+  { id: '25', day: 3, startTime: '09:00', endTime: '10:00', shift: 'morning' },
+  { id: '26', day: 3, startTime: '10:00', endTime: '11:00', shift: 'morning' },
+  { id: '27', day: 3, startTime: '11:15', endTime: '12:15', shift: 'morning' },
+  { id: '28', day: 3, startTime: '12:15', endTime: '13:15', shift: 'morning' },
+  { id: '29', day: 3, startTime: '14:00', endTime: '15:00', shift: 'afternoon' },
+  { id: '30', day: 3, startTime: '15:00', endTime: '16:00', shift: 'afternoon' },
+  { id: '31', day: 3, startTime: '16:15', endTime: '17:15', shift: 'afternoon' },
+  { id: '32', day: 3, startTime: '17:15', endTime: '18:15', shift: 'afternoon' },
+  
+  // Friday
+  { id: '33', day: 4, startTime: '09:00', endTime: '10:00', shift: 'morning' },
+  { id: '34', day: 4, startTime: '10:00', endTime: '11:00', shift: 'morning' },
+  { id: '35', day: 4, startTime: '11:15', endTime: '12:15', shift: 'morning' },
+  { id: '36', day: 4, startTime: '12:15', endTime: '13:15', shift: 'morning' },
+  { id: '37', day: 4, startTime: '14:00', endTime: '15:00', shift: 'afternoon' },
+  { id: '38', day: 4, startTime: '15:00', endTime: '16:00', shift: 'afternoon' },
+  { id: '39', day: 4, startTime: '16:15', endTime: '17:15', shift: 'afternoon' },
+  { id: '40', day: 4, startTime: '17:15', endTime: '18:15', shift: 'afternoon' },
 ];
